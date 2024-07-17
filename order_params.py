@@ -1,4 +1,4 @@
-#!/usr/bin/python3.10
+#!/usr/bin/env python3
 
 import numpy as np
 import MDAnalysis as mda
@@ -15,12 +15,27 @@ def list_to_array(sequence):
 
 
 def order_parameters(selection):
-    num_frames = len(u.trajectory)   #[args.bf:args.ef:args.dtf])
+    time = u.trajectory.totaltime
+
+    if args.b is not None or args.e is not None or args.ts is not None:
+        total_frames = len(u.trajectory)
+        frames_range = range(int(args.b * total_frames / time) if args.b is not None else 0,
+                             int(args.e * total_frames / time) if args.e is not None else len(u.trajectory) - 1,
+                             int(args.ts * total_frames / time) if args.ts is not None else 1)
+        frames = [i for i in frames_range]
+    else:
+        frames_range = range(args.bf if args.bf is not None else 0,
+                             args.ef if args.ef is not None else len(u.trajectory),
+                             args.step if args.step is not None else 1)
+        frames = [i for i in frames_range]
+
+    num_frames = len(u.trajectory[frames])
+
     num_atoms = max([int(atom.name[2:]) for atom in u.select_atoms(selection).split('residue')[0]])
 
     opu_list = [[] for _ in range(num_atoms - 1)]
     with tqdm(total=num_frames, desc="Processing Frames") as pbar:
-        for ts in u.trajectory:     #[args.bf:args.ef:args.dtf]:
+        for ts in u.trajectory[frames]:
             lipid_atoms = u.select_atoms(selection).split('residue')
             for lipid in lipid_atoms:
                 for atom in lipid.atoms:
@@ -35,7 +50,7 @@ def order_parameters(selection):
 
                             # Calculate order parameter and append it to list
                             order_parameter = 0.5 * (3 * cos_theta ** 2 - 1)
-                            opu_list[n].append(order_parameter)
+                            opu_list[n].append(round(order_parameter, 3))
 
             pbar.update(1)
 
@@ -44,28 +59,74 @@ def order_parameters(selection):
 
 
 if __name__ == '__main__':
+
     parser = argparse.ArgumentParser(description='Calculation of order parameters')
-    parser.add_argument('-s', type=str, help='Topology file (default: %(default)s)', default='topol.tpr',
+
+    parser.add_argument('-s', type=str,
+                        help='Input topology file used to define the system structure (default: %(default)s)',
+                        default='topol.tpr',
                         metavar='<.tpr>')
-    parser.add_argument('-f', type=str, help='Trajectory file (default: %(default)s)', default='traj_comp.xtc',
+
+    parser.add_argument('-f', type=str,
+                        help='Input trajectory file containing the molecular dynamics simulation data (default: %('
+                             'default)s)',
+                        default='traj_comp.xtc',
                         metavar='<.xtc>')
-    parser.add_argument('-o', type=str, help='Output text file (default: %(default)s)',
-                        default='order_params.txt', metavar='<.dat/.txt/...>')
-    parser.add_argument('-l', '--lipids', type=str, help='Lipid model used',
-                        choices=['popc', 'dopc', 'dmpc'], required=True)
-    parser.add_argument('-d', '--distance', type=float, metavar='<distance>', default=5,
-                        help='Distance for determining the nearest lipids (default: %(default)sA)')
-    parser.add_argument('--nearest', help='Turn on calculation of nearest lipids', action='store_true')
+
+    parser.add_argument('-o', type=str,
+                        help='Output file for writing calculated order parameters (default: %(default)s)',
+                        default='order_params.txt',
+                        metavar='<.dat/.txt/...>')
+
+    parser.add_argument('-l', '--lipids', type=str,
+                        help='Lipid model used in the simulation (required)',
+                        choices=['popc', 'dopc', 'dmpc'],
+                        required=True)
+
+    parser.add_argument('-d', '--distance', type=float,
+                        metavar='<distance>',
+                        default=5.0,
+                        help='Threshold distance in Angstroms for identifying nearest lipids (default: %(default)s Å)')
+
+    parser.add_argument('--nearest',
+                        help='Enable calculation of nearest lipids',
+                        action='store_true')
+
     parser.add_argument('--refmol', type=str,
-                        help='Reference molecule around which the environment is studied (default: %(default)s)',
-                        default='MOL', metavar='<resname>')
-    # parser.add_argument('-bf', type=int, metavar='<start frame>', default=0,
-    #                     help='Frame to start analysis from (default: %(default) frame)')
-    # parser.add_argument('-ef', type=int, metavar='<end frame>', default=-1,
-    #                     help='End frame for analysis (default: %(default) frame)')
-    # parser.add_argument('-dtf', type=float, metavar='<frame step>', default=1,
-    #                     help='Frame step to calculate order parameter (default: %(default))')
-    # parser.add_argument('--selection', type=str, help='Another atom selection, can be used if lipid name')
+                        help='Residue name of the reference molecule around which the environment is studied ('
+                             'default: %(default)s)',
+                        default='MOL',
+                        metavar='<resname>')
+
+    parser.add_argument('-bf', type=int,
+                        metavar='<first frame>',
+                        default=None,
+                        help='Frame number to start the analysis from (default: 0)')
+
+    parser.add_argument('-b', type=int,
+                        metavar='<start time>',
+                        default=None,
+                        help='Start time in picoseconds (ps) to begin the analysis (default: 0 ps)')
+
+    parser.add_argument('-ef', type=int,
+                        metavar='<last frame>',
+                        default=None,
+                        help='Frame number to end the analysis at')
+
+    parser.add_argument('-e', type=int,
+                        metavar='<last time>',
+                        default=None,
+                        help='End time in picoseconds (ps) to stop the analysis')
+
+    parser.add_argument('-step', type=int,
+                        metavar='<step>',
+                        default=None,
+                        help='Interval between frames to analyze (default: 1)')
+
+    parser.add_argument('-ts', type=int,
+                        metavar='<time step>',
+                        default=None,
+                        help='Time step interval in picoseconds (ps) for the analysis')
 
     args = parser.parse_args()
 
