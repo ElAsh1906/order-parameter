@@ -1,6 +1,6 @@
 # Lipid Order Parameter Calculation
 
-This project contains a script for calculating the order parameters of lipid tails from molecular dynamics (MD) simulation data. The order parameter is a measure of the orientation of lipid tails relative to a reference direction, often the bilayer normal in lipid membranes. It provides insights into the structural properties and dynamics of lipid bilayers.
+This project contains a script for calculating the order parameters of lipid tails from molecular dynamics (MD) simulation data. The order parameter is a measure of the orientation of lipid tails relative to a reference direction, often the bilayer normal in lipid membranes. It provides insights into the structural properties and dynamics of lipid bilayers. The main features of this script are the ability to select lipids closest to the drug molecule and to process lipids with tails of different saturation.
 
 ## Description
 
